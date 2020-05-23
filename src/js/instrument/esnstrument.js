@@ -123,6 +123,7 @@ if (typeof J$ === 'undefined') {
         ForInStatement: 'ForInStatement',
         FunctionDeclaration: 'FunctionDeclaration',
         FunctionExpression: 'FunctionExpression',
+        ArrowFunctionExpression: 'ArrowFunctionExpression',
         Identifier: 'Identifier',
         IfStatement: 'IfStatement',
         Literal: 'Literal',
@@ -474,6 +475,12 @@ if (typeof J$ === 'undefined') {
     }
 
     function wrapWrite(node, name, val, lhs, isGlobal, isScriptLocal, isDeclaration) {
+        // console.log(val)
+        // if (node.type == "ArrowFunctionExpression") {
+        //     console.log("here!!")
+        //     // return val
+        // }
+        console.log(node)
         if (!Config.INSTR_WRITE || Config.INSTR_WRITE(name, node)) {
             printIidToLoc(node);
             var ret = replaceInExpr(
@@ -593,6 +600,7 @@ if (typeof J$ === 'undefined') {
         if (entryExpr.callee.property.name != 'Fe') {
             throw new Error("IllegalStateException");
         }
+        // console.log(entryExpr['arguments'][0])
         return entryExpr['arguments'][0].value;
     }
 
@@ -984,12 +992,13 @@ if (typeof J$ === 'undefined') {
                 iid1,
                 getIid()
             );
-            //console.log(JSON.stringify(ret));
+            // console.log(JSON.stringify(ret));
 
             ret = ret[0].body.body;
             transferLoc(ret[0], node);
             return ret;
         } else {
+            // console.log(node.body)
             return body;
         }
     }
@@ -1067,6 +1076,7 @@ if (typeof J$ === 'undefined') {
 
 
     function instrumentFunctionEntryExit(node, ast) {
+        console.log("here")
         var body;
         if (!Config.INSTR_TRY_CATCH_ARGUMENTS || Config.INSTR_TRY_CATCH_ARGUMENTS(node)) {
             body = createCallAsFunEnterStatement(node);
@@ -1074,6 +1084,7 @@ if (typeof J$ === 'undefined') {
             body = [];
         }
         body = body.concat(syncDefuns(node, scope, false)).concat(ast);
+        console.log(body)
         return body;
     }
 
@@ -1123,6 +1134,11 @@ if (typeof J$ === 'undefined') {
         var ret;
         if (node.left.type === 'Identifier') {
             if (scope.hasVar(node.left.name)) {
+                // if (node.right.type == "ArrowFunctionExpression") {
+                //     console.log("WOOOOOW");
+                //     console.log(node.right)
+                //     return node
+                // }
                 ret = wrapWrite(node.right, createLiteralAst(node.left.name), node.right, node.left, false, scope.isGlobal(node.left.name), isDeclaration);
             } else {
                 ret = wrapWriteWithUndefinedCheck(node.right, createLiteralAst(node.left.name), node.right, node.left);
@@ -1133,6 +1149,48 @@ if (typeof J$ === 'undefined') {
         } else {
             ret = wrapPutField(node, node.left.object, getPropertyAsAst(node.left), node.right, node.left.computed);
             return ret;
+        }
+    }
+
+    function instrumentArrowFunction(node) {
+        // var blen = node.body.body.length
+        // var hasExpReturn = false
+        // if (node.body.body[blen - 1].type == "ReturnStatement") {
+        //     hasExpReturn = true
+        // }
+        // // console.log(node.body.body[0])
+        // return wrapArrowFunction(node, hasExpReturn);
+        return node;
+    }
+
+    function wrapArrowFunction(node, hasExpReturn) {
+        if (!Config.INSTR_TRY_CATCH_ARGUMENTS || Config.INSTR_TRY_CATCH_ARGUMENTS(node)) {
+            printIidToLoc(node);
+            var iid1 = getIid();
+            printIidToLoc(node);
+            var l = labelCounter++;
+            var ret = replaceInStatement(
+                "function n() { jalangiLabel" + l + ": while(true) { try {" + RP + "1} catch(" + JALANGI_VAR +
+                "e) { //console.log(" + JALANGI_VAR + "e); console.log(" +
+                JALANGI_VAR + "e.stack);\n " + logUncaughtExceptionFunName + "(" + RP + "2," + JALANGI_VAR +
+                "e); } finally { if (" + logFunctionReturnFunName + "(" +
+                RP + "3)) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", node.body,
+                iid1,
+                getIid()
+            );
+            // console.log(JSON.stringify(ret));
+
+            // ret = replaceInStatement(
+            //     "reeeeeeeeeeeeeeeeeeeee", node.body, iid1, getIid()
+            // );
+
+            ret = ret[0].body.body;
+            transferLoc(ret[0], node);
+            console.log("FUCK ME UP")
+            return node;
+        } else {
+            // console.log(node.body)
+            return node;
         }
     }
 
@@ -1411,6 +1469,9 @@ if (typeof J$ === 'undefined') {
             return node;
         },
         "VariableDeclaration": function (node) {
+            if (node.kind == "const") {
+                node.kind = "var"
+            }
             var declarations = MAP(node.declarations, function (def) {
                 if (def.init !== null) {
                     var init = wrapWrite(def.init, createLiteralAst(def.id.name), def.init, def.id, false, scope.isGlobal(def.id.name), true);
@@ -1450,6 +1511,11 @@ if (typeof J$ === 'undefined') {
                 ret1 = instrumentLoadModStore(node);
             }
             return ret1;
+        },
+        "ArrowFunctionExpression": function (node) {
+            // console.log("KILL ME");
+            // console.log(node)
+            return instrumentArrowFunction(node)
         },
         "UpdateExpression": function (node) {
             var ret1;
@@ -1615,6 +1681,7 @@ if (typeof J$ === 'undefined') {
         },
         "FunctionExpression": function (node) {
             node.body.body = wrapFunBodyWithTryCatch(node, node.body.body);
+            // console.log(node);
             return node;
         },
         "FunctionDeclaration": function (node) {

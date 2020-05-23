@@ -108,7 +108,7 @@ if (typeof J$ === 'undefined') {
                         (type === 'UpdateExpression' && key === 'argument') ||
                         (type === 'UnaryExpression' && key === 'argument' && object.operator === 'delete') ||
                         (type === 'ForInStatement' && key === 'left') ||
-                        ((type === 'FunctionExpression' || type === 'FunctionDeclaration') && key === 'id') ||
+                        ((type === 'FunctionExpression' || type === 'FunctionDeclaration' || type === "ArrowFunctionExpression") && key === 'id') ||
                         (type === 'LabeledStatement' && key === 'label') ||
                         (type === 'BreakStatement' && key === 'label') ||
                         (type === 'CatchClause' && key === 'param') ||
@@ -122,7 +122,7 @@ if (typeof J$ === 'undefined') {
                         newContext = CONTEXT.IGNORE;
                     } else if (type === 'ObjectExpression' && key === 'properties') {
                         newContext = CONTEXT.OEXP;
-                    } else if ((type === 'FunctionExpression' || type === 'FunctionDeclaration') && key === 'params') {
+                    } else if ((type === 'FunctionExpression' || type === 'FunctionDeclaration' || type === "ArrowFunctionExpression") && key === 'params') {
                         newContext = CONTEXT.PARAMS;
                     } else if (context === CONTEXT.OEXP) {
                         newContext = CONTEXT.OEXP2;
@@ -178,7 +178,8 @@ if (typeof J$ === 'undefined') {
         var visitorPre = {
             'Program':handleFun,
             'FunctionDeclaration':handleFun,
-            'FunctionExpression':handleFun
+            'FunctionExpression':handleFun,
+            'ArrowFunctionExpression': handleFun
         };
 
         function canMakeSymbolic(node) {
